@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"crypto/sha256"
 	"fmt"
+	"../utils"
 )
 
 const dbFile = "blockchain_%s.db"
@@ -238,7 +239,7 @@ func NewBlockchain(nodeID string) *Blockchain {
 }
 
 func genBlockPeriod(bc *Blockchain)  {
-	time.Sleep(5 * time.Second)
+	time.Sleep(utils.BLOCK_TIME * time.Second)
 	listDelegates := GetDelegates(bc)
 	if len(listDelegates) > 3 {
 		lastBlock := bc.GetLastBlock()

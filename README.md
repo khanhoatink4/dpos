@@ -1,7 +1,7 @@
 # dpos
 Delegated Proof of State example
 
-DPOS minimum 4 delegate for consensus algorithm
+DPoS minimum 4 delegate for consensus algorithm
 
 How to start? <br />
 $ go build main.go <br />
