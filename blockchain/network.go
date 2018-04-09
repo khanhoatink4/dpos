@@ -84,14 +84,22 @@ func extractCommand(request []byte) []byte {
 	return request[:commandLength]
 }
 
-func sendDelegates(bc *Blockchain) {
-	lastBlock := bc.GetLastBlock()
+func sendDelegates(bc *Blockchain, numberDelegate int, delegate *Delegates) {
+	//lastBlock := bc.GetLastBlock()
 	listDelegates := GetDelegates(bc)
-	tmpDelegate := &Delegates{nodeVersion, lastBlock.Height, nodeAddress}
-	for _, delegate := range listDelegates {
+	//tmpDelegate := &Delegates{nodeVersion, lastBlock.Height, nodeAddress, len(listDelegates)}
+	for _, tmpDelegate := range listDelegates {
+		log.Println(tmpDelegate.Address, nodeAddress, numberDelegate, delegate.NumPeer)
 		//send data to all delegate available
-		if delegate.Address != nodeAddress {
-			data := delegateSt{nodeAddress, tmpDelegate.SerializeDelegate()}
+		if tmpDelegate.Address != nodeAddress && numberDelegate > delegate.NumPeer{
+			data := delegateSt{nodeAddress, delegate.SerializeDelegate()}
+			payload := gobEncode(data)
+			request := append(commandToBytes("delegates"), payload...)
+			sendData(tmpDelegate.Address, request)
+		}
+
+		if tmpDelegate.Address != nodeAddress {
+			data := delegateSt{tmpDelegate.Address, tmpDelegate.SerializeDelegate()}
 			payload := gobEncode(data)
 			request := append(commandToBytes("delegates"), payload...)
 			sendData(delegate.Address, request)
@@ -120,8 +128,6 @@ func sendData(addr string, data []byte) {
 func handleBlock(request []byte, bc *Blockchain) {
 	var buff bytes.Buffer
 	var payload block
-
-	log.Println(request)
 
 	buff.Write(request[commandLength:])
 	dec := gob.NewDecoder(&buff)
@@ -158,22 +164,25 @@ func handleDeletes(request []byte, bc *Blockchain) {
 	delegate := DeserializePeer(delegateData)
 
 	myBestHeight := bc.GetBestHeight()
+	// insert delegates
+	isInsert := InsertDelegates(bc, delegate, myBestHeight)
+	log.Println("handleDelegate", payload.AddrFrom, delegate, myBestHeight, isInsert)
 
-	log.Println("handleDelegate", payload.AddrFrom, delegate, myBestHeight)
+	numberDelegates := GetNumberDelegates(bc)
 
-	//foreignerBestHeight := payload.LastHeight
-	//
-	//if myBestHeight < foreignerBestHeight {
-	//	sendGetBlocks(payload.Address)
-	//} else if myBestHeight > foreignerBestHeight {
+
+	//if myBestHeight > delegate.LastHeight {
 	//	sendDelegates(bc)
 	//}
-	//if myBestHeight < delegate.LastHeight {
-		InsertDelegates(bc, delegate, myBestHeight)
-	//}
-	if myBestHeight > delegate.LastHeight {
-		sendDelegates(bc)
+
+	log.Println(numberDelegates, delegate.NumPeer)
+	//if numberDelegates > delegate.NumPeer {
+	if isInsert {
+		sendDelegates(bc, numberDelegates, delegate)
 	}
+	//}
+
+
 }
 
 func handleConnection(conn net.Conn, bc *Blockchain) {
@@ -211,10 +220,11 @@ func StartServer(nodeID string) {
 	bc := NewBlockchain(nodeID)
 
 	lastHeight := bc.GetBestHeight()
-	delegate := &Delegates{nodeVersion, lastHeight, nodeAddress}
+	numberDelegate := GetNumberDelegates(bc)
+	delegate := &Delegates{nodeVersion, lastHeight, nodeAddress, numberDelegate}
 	InsertDelegates(bc, delegate, lastHeight)
 	if nodeAddress != knownNodes[0] {
-		sendDelegates(bc)
+		sendDelegates(bc, numberDelegate + 1, delegate)
 	}
 
 	go Forks(bc)

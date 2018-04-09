@@ -245,30 +245,34 @@ func genBlockPeriod(bc *Blockchain)  {
 		//timeNow := time.Now().Unix()
 		indexDelegate := 0
 		delegate := listDelegates[indexDelegate]
-		quorum := 0
-		noquorum := 0
-		for _, delegatePeer := range listDelegates {
-			if delegatePeer.LastHeight == lastBlock.Height {
-				quorum += 1
-			} else {
-				noquorum += 1
-			}
-		}
-
-		log.Println(quorum, noquorum)
-
-		if (quorum+noquorum) > 0 && float64(float64(quorum) / float64(quorum + noquorum)) > float64(0.66) {
-			block := generateBlock(lastBlock, 0, delegate.Address)
-			bc.AddBlock(block)
-
-			log.Println(block)
+		if nodeAddress == knownNodes[0] {
+			quorum := 0
+			noquorum := 0
 			for _, delegatePeer := range listDelegates {
-				if delegatePeer.Address != nodeAddress {
-					log.Println("sendBlock", delegatePeer.Address)
-					SendBlock(delegatePeer.Address, block)
-					UpdateDelegate(bc, delegatePeer.Address, block.Height)
+				if delegatePeer.LastHeight == lastBlock.Height {
+					quorum += 1
+				} else {
+					noquorum += 1
 				}
 			}
+
+			log.Println(quorum, noquorum)
+
+			if (quorum+noquorum) > 0 && float64(float64(quorum)/float64(quorum+noquorum)) > float64(0.66) {
+				block := generateBlock(lastBlock, 0, delegate.Address)
+				bc.AddBlock(block)
+
+				log.Println(block)
+				for _, delegatePeer := range listDelegates {
+					if delegatePeer.Address != nodeAddress {
+						log.Println("sendBlock", delegatePeer.Address)
+						SendBlock(delegatePeer.Address, block)
+						UpdateDelegate(bc, delegatePeer.Address, block.Height)
+					}
+				}
+			}
+		} else {
+			log.Println(delegate.Address)
 		}
 	} else {
 		log.Println("len peer: ", len(listDelegates))

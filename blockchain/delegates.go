@@ -12,6 +12,7 @@ type Delegates struct {
 	Version    int64
 	LastHeight int64
 	Address    string
+	NumPeer	   int
 }
 
 const peerBucket = "peerBucket"
@@ -33,6 +34,25 @@ func GetDelegates(bc *Blockchain) []*Delegates {
 	return listDelegate
 }
 
+// get number delegates
+func GetNumberDelegates(bc *Blockchain) int {
+	numberDelegate := 0
+	bc.db.View(func(tx *bolt.Tx) error {
+		// Assume bucket exists and has keys
+		b := tx.Bucket([]byte(peerBucket))
+		c := b.Cursor()
+
+
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			numberDelegate += 1
+		}
+
+		return nil
+	})
+	return numberDelegate
+}
+
+
 func UpdateDelegate(bc *Blockchain, address string, lastHeight int64)  {
 	var delegate Delegates
 	bc.db.Update(func(tx *bolt.Tx) error {
@@ -52,7 +72,8 @@ func UpdateDelegate(bc *Blockchain, address string, lastHeight int64)  {
 	})
 }
 
-func InsertDelegates(bc *Blockchain, delegate *Delegates, lastHeight int64) {
+func InsertDelegates(bc *Blockchain, delegate *Delegates, lastHeight int64) bool{
+	isInsert := false
 	err := bc.db.Update(func(tx *bolt.Tx) error {
 		// Assume bucket exists and has keys
 		b := tx.Bucket([]byte(peerBucket))
@@ -66,6 +87,7 @@ func InsertDelegates(bc *Blockchain, delegate *Delegates, lastHeight int64) {
 			if err != nil {
 				log.Panic(err)
 			}
+			isInsert = true
 			return err
 		} else {
 			tmpDelegate := *DeserializePeer(delegateData)
@@ -75,6 +97,7 @@ func InsertDelegates(bc *Blockchain, delegate *Delegates, lastHeight int64) {
 				if err != nil {
 					log.Panic(err)
 				}
+				isInsert = true
 				return err
 			}
 		}
@@ -84,6 +107,7 @@ func InsertDelegates(bc *Blockchain, delegate *Delegates, lastHeight int64) {
 	if err != nil {
 		log.Panic(err)
 	}
+	return isInsert
 }
 
 // Serialize serializes the block
